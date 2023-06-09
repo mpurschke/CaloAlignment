@@ -69,7 +69,7 @@ CaloAlignment::CaloAlignment(const std::string &name,  const std::string &fileli
 
   se = Fun4AllServer::instance();
 
-  _min_depth=100;
+  _min_depth=10;
 
 
 }
@@ -181,8 +181,6 @@ int CaloAlignment::process_event(PHCompositeNode *topNode)
 
   // here we have all events from all files
      
-  unsigned int min_depth  = 100;  // some large number
-
   auto eitr = event_list.begin();
   for ( ; eitr != event_list.end(); ++eitr)
     {
@@ -194,7 +192,7 @@ int CaloAlignment::process_event(PHCompositeNode *topNode)
 
       if ( (*eitr)->getEvtType() <= 7)
 	{
-	  addPackets  ( (*eitr), min_depth);
+	  addPackets  ( (*eitr), _min_depth);
 	}
       delete (*eitr);
 
@@ -282,7 +280,7 @@ int CaloAlignment::addPackets(Event *e, unsigned int &min_depth)
 	}
       //cout << __FILE__ << " " << __LINE__ << " size of " << p_id << " is "  << packet_pool[p_id].size() << endl;
 
-      if (  packet_pool[p_id].size() < min_depth ) min_depth = packet_pool[p_id].size();
+      //  if (  packet_pool[p_id].size() < min_depth ) min_depth = packet_pool[p_id].size();
       
     }
 
@@ -318,8 +316,13 @@ int CaloAlignment::process()
 		{
 		  if ( Verbosity() >= VERBOSITY_SOME)
 		    {
-		      cout << " packet " << (*p_itr)->getIdentifier()  <<  " evt nr " << (*p_itr)->iValue(0,"EVTNR") << "  "
-			   << hex << "0x" << (*p_itr)->iValue(0,"CLOCK") << dec <<"   " << endl; 
+		      cout << " packet " << (*p_itr)->getIdentifier()  
+			   <<  " evt nr " << (*p_itr)->iValue(0,"EVTNR") 
+			   << "  " << (*p_itr)->iValue(0,"CLOCK")  << " |  " 
+			   << "  " << (*p_itr)->iValue(0,"FEMCLOCK")
+			   << "  " << (*p_itr)->iValue(1,"FEMCLOCK")
+			   << "  " << (*p_itr)->iValue(2,"FEMCLOCK")
+			   << endl; 
 		    }
 		  aligned_packets.push_back(*p_itr);
 		  itr->second.erase(p_itr);
