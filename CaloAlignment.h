@@ -15,6 +15,12 @@
 #include <fun4all/Fun4AllServer.h>
 #include <Event/fileEventiterator.h>
 
+
+#include <Event/ospEvent.h>
+#include <Event/EventTypes.h>
+#include <Event/oEvent.h>
+#include <Event/A_Event.h>
+
 class Fun4AllHistoManager;
 class TH1F;
 class TH2F;
@@ -71,7 +77,8 @@ class CaloAlignment : public SubsysReco
   int addPackets(Event *, unsigned int &);
   unsigned int getMinDepth() const;
 
-  int Analysis(std::vector<Packet *> &);
+  //  int Analysis(std::vector<Packet *> &);
+  int Analysis( Event *E);
   int fillHist(std::vector<Packet *> &);
 
   Fun4AllServer *se;
@@ -98,12 +105,14 @@ class CaloAlignment : public SubsysReco
   };
 
   std::map<int, std::set<Packet *, SortByEvtNr> > packet_pool;
+  PHDWORD workmem[4*1024*1024];
 
   Fun4AllHistoManager* hm;
   TH1F * h1;
   TH2F * h2_packet_vs_event;
-
-
+  oEvent *oph;
+  ospEvent *osp;
+  int _TheRunNumber;
 };
 
 #endif // HCAL_COSMICS_H

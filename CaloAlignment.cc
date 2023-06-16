@@ -71,7 +71,8 @@ CaloAlignment::CaloAlignment(const std::string &name,  const std::string &fileli
 
   _min_depth=10;
 
-
+  oph = new oEvent(workmem,4*1024*1024, 1,1,1);
+  _TheRunNumber = 0;
 }
 
 //____________________________________________________________________________..
@@ -148,6 +149,7 @@ int CaloAlignment::process_event(PHCompositeNode *topNode)
   int all_received = 1; // a bit crude logic, but ok
 
   auto itr = _event_itr_list.begin();
+
   for ( ; itr != _event_itr_list.end(); ++itr)
     {
       //      (*itr)->identify();
@@ -159,6 +161,7 @@ int CaloAlignment::process_event(PHCompositeNode *topNode)
 	  all_received =0;  // stream exhausted
 	  break;
 	}
+      _TheRunNumber = e->getRunNumber();
       event_list.push_back(e);
     }
 
@@ -292,10 +295,13 @@ int CaloAlignment::addPackets(Event *e, unsigned int &min_depth)
 int CaloAlignment::process()
 {
 
+
   while ( getMinDepth() >= _min_depth ) 
     {
 
-      std::vector<Packet *> aligned_packets;
+      oph->prepare_next(current_evtnr, _TheRunNumber);
+       
+       std::vector<Packet *> aligned_packets;
 
       auto itr = packet_pool.begin();
       for ( ; itr != packet_pool.end(); ++itr)
@@ -314,6 +320,9 @@ int CaloAlignment::process()
 
 	      if (  (*p_itr)->iValue(0,"EVTNR") ==   current_evtnr )
 		{
+
+		  oph->addPacket((*p_itr));
+
 		  if ( Verbosity() >= VERBOSITY_SOME)
 		    {
 		      cout << " packet " << (*p_itr)->getIdentifier()  
@@ -335,6 +344,12 @@ int CaloAlignment::process()
 
 	}
 
+      Event * E = new A_Event(workmem);
+      if ( Verbosity() >= VERBOSITY_MORE)
+	{
+	  E->identify();
+	}
+
       h1->Fill(aligned_packets.size());
 
       if ( Verbosity() >= VERBOSITY_MORE)
@@ -349,8 +364,11 @@ int CaloAlignment::process()
 	}
 
       h2_packet_vs_event->Fill(current_evtnr, aligned_packets.size() );
+
       // this is the place where we call the analysis
-      int status = Analysis(aligned_packets);
+
+      int status = Analysis(E);
+      delete E;
 
       auto it = aligned_packets.begin();
       for ( ; it != aligned_packets.end(); ++it)
@@ -369,24 +387,35 @@ int CaloAlignment::process()
 }
 
 //____________________________________________________________________________..
-int CaloAlignment::Analysis(std::vector<Packet *> & aligned_packets)
+int CaloAlignment::Analysis(Event *E)
 {
 
-  auto it = aligned_packets.begin();
-  for ( ; it != aligned_packets.end(); ++it)
-    {
-      Packet *p = *it;  // easier to remember what is what
+  Packet *packetList[256];
+  int np;
+  int i;
+  
+  double baseline_low  = 0.;	
 
-      // now we make a "trigger"
-      double high_val = 0;
+
+  // get a vector with all Packet * pointers in one fell swoop
+  // np says how many we got
+  np  = E->getPacketList(packetList, 256);
+
+  for ( i = 0; i < np; i++)
+    {
+      Packet *p = packetList[i];
+
+      if ( Verbosity() >= VERBOSITY_SOME)
+	{
+	  packetList[i]->identify();
+	}
 
       for ( int c = 0; c <  p->iValue(0,"CHANNELS"); c++)
 	{
 	  // calculate the baseline. Bcause we don't know  where a pulse is, 
 	  // we calculate  at the low and high sample range  
-	  double baseline_low  = 0.;	
 	  double baseline_high = 0.;	
-	  double baseline = 0.;	
+	  //	  double baseline = 0.;	
 	  for ( int s = 0;  s< 3; s++)
 	    {
 	      baseline_low += p->iValue(s,c);
@@ -399,17 +428,16 @@ int CaloAlignment::Analysis(std::vector<Packet *> & aligned_packets)
 	    }
 	  baseline_high /= 3.;
 
-	  baseline = baseline_high;
-	  if ( baseline_low < baseline_high) baseline = baseline_low;
+	  // baseline = baseline_high;
+	  // if ( baseline_low < baseline_high) baseline = baseline_low;
 
 
 	  // cout << "baselines: " << baseline_low <<" " <<  baseline_high << " " <<  baseline << endl;
-	  for ( int s = 0;  s< p->iValue(0,"SAMPLES"); s++)
-	    {
-	      double sample = p->iValue(s,c) - baseline; 
-	      if ( sample  > high_val ) high_val  = sample;
+	  // for ( int s = 0;  s< p->iValue(0,"SAMPLES"); s++)
+	  //   {
+	  //     double sample = p->iValue(s,c) - baseline; 
 
-	    }
+	  //   }
 
 	}
 
